@@ -152,13 +152,9 @@ def read_vasp(filename='CONTCAR'):
     # Check whether we have a VASP 4.x or 5.x format file. If the
     # format is 5.x, use the fifth line to provide information about
     # the atomic symbols.
-    vasp5 = False
-    try:
-        int(numofatoms[0])
-    except ValueError:
-        vasp5 = True
-        atomtypes = numofatoms
-        numofatoms = fd.readline().split()
+    vasp5 = True
+    atomtypes = numofatoms
+    numofatoms = fd.readline().split()
 
     # check for comments in numofatoms line and get rid of them if necessary
     commentcheck = np.array(['!' in s for s in numofatoms])
@@ -694,7 +690,7 @@ def _write_symbol_count(fd, sc, vasp5=True):
 def write_vasp(filename,
                atoms,
                label=None,
-               direct=False,
+               direct=True,
                sort=None,
                symbol_count=None,
                long_format=True,

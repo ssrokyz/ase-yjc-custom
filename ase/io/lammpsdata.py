@@ -7,7 +7,7 @@ from ase.utils import reader, writer
 
 
 @reader
-def read_lammps_data(fileobj, Z_of_type=None, style="full",
+def read_lammps_data(fileobj, Z_of_type=None, style="atomic",
                      sort_by_id=False, units="metal"):
     """Method which reads a LAMMPS data file.
 
@@ -404,7 +404,7 @@ def read_lammps_data(fileobj, Z_of_type=None, style="full",
 
 @writer
 def write_lammps_data(fd, atoms, specorder=None, force_skew=False,
-                      prismobj=None, velocities=False, units="metal",
+                      prismobj=None, velocities=True, units="metal",
                       atom_style='atomic'):
     """Write atomic structure data to a LAMMPS data file."""
 

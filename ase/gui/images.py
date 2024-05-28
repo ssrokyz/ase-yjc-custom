@@ -70,6 +70,32 @@ class Images:
         else:
             return F
 
+    def get_potential_energies(self, atoms):
+        try:
+            energies = atoms.get_potential_energies()
+        except RuntimeError:
+            return None
+        else:
+            return energies
+
+    def get_vdos(self, atoms):
+        try:
+            vdos = atoms.calc.results['vdos']
+            vdos_l = atoms.calc.results['vdos_l']
+            vdos_t = atoms.calc.results['vdos_t']
+        except:
+            return None, None, None
+        else:
+            return vdos, vdos_l, vdos_t
+
+    def get_aam(self, atoms):
+        try:
+            aam = np.linalg.norm(atoms.calc.results['aam'], axis=-1)
+        except:
+            return None
+        else:
+            return aam
+
     def initialize(self, images, filenames=None):
         nimages = len(images)
         if filenames is None:
@@ -344,7 +370,7 @@ class Images:
 
         # Namespace for eval:
         ns = {'E': E,
-              'd': d, 'a': a, 'dih': dih}
+              'd': d, 'a': a, 'dih': dih, 'np':np}
 
         data = []
         for i in range(nimages):

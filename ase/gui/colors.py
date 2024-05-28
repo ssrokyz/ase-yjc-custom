@@ -18,14 +18,19 @@ class ColorWindow:
         self.gui = gui
         self.win.add(ui.Label(_('Choose how the atoms are colored:')))
         values = ['jmol', 'tag', 'force', 'velocity',
-                  'initial charge', 'magmom', 'neighbors']
+                  'initial charge', 'magmom', 'neighbors', 'energies', 'vdos', 'vdos_l', 'vdos_t', 'aam']
         labels = [_('By atomic number, default "jmol" colors'),
                   _('By tag'),
                   _('By force'),
                   _('By velocity'),
                   _('By initial charge'),
                   _('By magnetic moment'),
-                  _('By number of neighbors'), ]
+                  _('By number of neighbors'),
+                  _('By potential energies'),
+                  _('By atomic VDOS'),
+                  _('By atomic longitudinal VDOS'),
+                  _('By atomic transverse VDOS'),
+                  _('By atomic angular momentum'),]
 
         haveit = ['numbers', 'positions', 'forces', 'momenta',
                   'initial_charges', 'initial_magmoms']
@@ -66,11 +71,18 @@ class ColorWindow:
         # XXX not sure how to deal with some images having forces,
         # and other images not.  Same goes for below quantities
         F = images.get_forces(atoms)
+        energies = images.get_potential_energies(atoms)
+        vdos, vdos_l, vdos_t = images.get_vdos(atoms)
         radio['force'].active = F is not None
         radio['velocity'].active = atoms.has('momenta')
         radio['initial charge'].active = atoms.has('initial_charges')
         radio['magmom'].active = get_magmoms(atoms).any()
         radio['neighbors'].active = True
+        radio['energies'].active = energies is not None
+        radio['vdos'].active = vdos is not None
+        radio['vdos_l'].active = vdos_l is not None
+        radio['vdos_t'].active = vdos_t is not None
+        radio['aam'].active = images.get_aam(atoms) is not None
 
     def toggle(self, value):
         self.gui.colormode = value
@@ -103,6 +115,7 @@ class ColorWindow:
 
             try:
                 unit = {'tag': '',
+                        'energies': 'eV',
                         'force': 'eV/Ang',
                         'velocity': '(eV/amu)^(1/2)',
                         'charge': '|e|',
@@ -146,8 +159,11 @@ class ColorWindow:
             N = 26
         colorscale, mn, mx = self.gui.colormode_data
         if cmap == 'default':
-            colorscale = ['#{0:02X}80{0:02X}'.format(int(red))
-                          for red in np.linspace(0, 250, N)]
+            import pylab as plt
+            import matplotlib
+            cmap = plt.cm.get_cmap('Reds')
+            colorscale = [matplotlib.colors.rgb2hex(c[:3]) for c in
+                          cmap(np.linspace(0, 1, N))]
         elif cmap == 'old':
             colorscale = ['#{0:02X}AA00'.format(int(red))
                           for red in np.linspace(0, 230, N)]

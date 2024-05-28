@@ -43,7 +43,7 @@ class NPT(MolecularDynamics):
                  timestep, temperature=None, externalstress=None,
                  ttime=None, pfactor=None,
                  *, temperature_K=None,
-                 mask=None, trajectory=None, logfile=None, loginterval=1,
+                 wrap=True, mask=None, trajectory=None, logfile=None, loginterval=1,
                  append_trajectory=False):
         '''Constant pressure/stress and temperature dynamics.
 
@@ -153,6 +153,7 @@ class NPT(MolecularDynamics):
         self.initialized = 0
         self.ttime = ttime
         self.pfactor_given = pfactor
+        self.wrap = wrap
         self._calculateconstants()
         self.timeelapsed = 0.0
         self.frac_traceless = 1

@@ -147,6 +147,10 @@ def lammps_data_to_ase_atoms(
     forces = get_quantity(["fx", "fy", "fz"], "force")
     # !TODO: how need quaternions be converted?
     quaternions = get_quantity(["c_q[1]", "c_q[2]", "c_q[3]", "c_q[4]"])
+    if 'c_pe' in colnames:
+        pe = data[:, colnames.index('c_pe')]
+    else:
+        pe = None
 
     # convert cell
     cell = convert(cell, "distance", units, "ASE")
@@ -201,13 +205,15 @@ def lammps_data_to_ase_atoms(
         calculator = SinglePointCalculator(out_atoms, energy=0.0,
                                            forces=forces)
         out_atoms.calc = calculator
+    if pe is not None:
+        out_atoms._calc.results['energies'] = np.array(pe, dtype=float)
 
     # process the extra columns of fixes, variables and computes
     #    that can be dumped, add as additional arrays to atoms object
     for colname in colnames:
         # determine if it is a compute or fix (but not the quaternian)
         if (colname.startswith('f_') or colname.startswith('v_') or
-                (colname.startswith('c_') and not colname.startswith('c_q['))):
+                (colname.startswith('c_') and not colname.startswith('c_q[') and not colname == 'c_pe')):
             out_atoms.new_array(colname, get_quantity([colname]),
                                 dtype='float')
 
@@ -254,28 +260,13 @@ def read_lammps_dump_text(fileobj, index=-1, **kwargs):
     :returns: list of Atoms objects
     :rtype: list
     """
-    # Load all dumped timesteps into memory simultaneously
-    lines = deque(fileobj.readlines())
-    index_end = get_max_index(index)
-
-    n_atoms = 0
-    images = []
 
     # avoid references before assignment in case of incorrect file structure
     cell, celldisp, pbc = None, None, False
 
-    while len(lines) > n_atoms:
+    def read_a_loop(lines, n_atoms, **kwargs):
+      while lines:
         line = lines.popleft()
-
-        if "ITEM: TIMESTEP" in line:
-            n_atoms = 0
-            line = lines.popleft()
-            # !TODO: pyflakes complains about this line -> do something
-            # ntimestep = int(line.split()[0])  # NOQA
-
-        if "ITEM: NUMBER OF ATOMS" in line:
-            line = lines.popleft()
-            n_atoms = int(line.split()[0])
 
         if "ITEM: BOX BOUNDS" in line:
             # save labels behind "ITEM: BOX BOUNDS" in triclinic case
@@ -323,13 +314,72 @@ def read_lammps_dump_text(fileobj, index=-1, **kwargs):
                 pbc=pbc,
                 **kwargs
             )
-            images.append(out_atoms)
+            return out_atoms
 
-        if len(images) > index_end >= 0:
+    # @ Main
+    # Get slice (YJ)
+    from ss_util import slice2str, str_slice_to_list
+    # (start, stop, interval)
+    slice_list = str_slice_to_list(slice2str(index))
+    if slice_list[2] < 0:
+        raise NotImplementedError('Please provide positive interval for slice. i.e. c must be positive, where slice=(a:b:c)')
+
+    # Get number of atoms (YJ)
+    while True:
+        line = fileobj.readline()
+        if 'ITEM: NUMBER OF ATOMS' in line:
+            n_atoms = int(fileobj.readline())
+            fileobj.seek(0)
             break
 
-    return images[index]
+    images = []
+    # Make start slice positive.
+    lines_tot = None
+    if slice_list[0] < 0:
+        lines_tot = fileobj.readlines()
+        len_imgs = len(lines_tot)//(n_atoms+9)
+        slice_list[0] += len_imgs
+    # Make stop slice positive int or inf.
+    if slice_list[1] is None:
+        if lines_tot is None:
+            slice_list[1] = float('inf')
+        else:
+            slice_list[1] = len_imgs
+    elif slice_list[1] < 0:
+        if lines_tot is None:
+            lines_tot = fileobj.readlines()
+            len_imgs = len(lines_tot)//(n_atoms+9)
+        slice_list[1] += len_imgs
+    # Now every slice elements are positive (slice_list[1] can be inf).
 
+    # READ
+    max_img_len = (slice_list[1] -1 -slice_list[0]) //slice_list[2] +1
+    i=0
+    while True:
+        if i >= slice_list[0] and (i -slice_list[0]) % slice_list[2] == 0:
+            # Get lines.
+            if lines_tot is None:
+                lines = []
+                for _ in range(n_atoms+9):
+                    lines.append(fileobj.readline())
+                if lines[-1] == '':
+                    break
+            else:
+                lines = lines_tot[i*(n_atoms+9):(i+1)*(n_atoms+9)]
+            # Read images.
+            images.append(read_a_loop(deque(lines), n_atoms, **kwargs))
+            if len(images) % 1000 == 0:
+                print('{}-th system is read from lammps-dump-text file.'.format(i+1))
+            # Break if it is done.
+            if len(images) == max_img_len:
+                break
+        else:
+            # Skip irrelevant lines
+            if lines_tot is None:
+                for _ in range(n_atoms+9):
+                    fileobj.readline()
+        i+=1
+    return images
 
 def read_lammps_dump_binary(
     fileobj, index=-1, colnames=None, intformat="SMALLBIG", **kwargs

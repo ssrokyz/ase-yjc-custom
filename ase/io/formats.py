@@ -393,7 +393,7 @@ F('html', 'X3DOM HTML', '1F', module='x3d')
 F('json', 'ASE JSON database file', '+F', ext='json', module='db')
 F('jsv', 'JSV file format', '1F')
 F('lammps-dump-text', 'LAMMPS text dump file', '+F',
-  module='lammpsrun', magic_regex=b'.*?^ITEM: TIMESTEP$')
+  module='lammpsrun', magic_regex=b'ITEM: TIMESTEP\n')
 F('lammps-dump-binary', 'LAMMPS binary dump file', '+B',
   module='lammpsrun')
 F('lammps-data', 'LAMMPS data file', '1F', module='lammpsdata',
@@ -732,10 +732,12 @@ def read(
     if isinstance(index, (slice, str)):
         return list(_iread(filename, index, format, io, parallel=parallel,
                            **kwargs))
-    else:
+    elif index==-1:
         return next(_iread(filename, slice(index, None), format, io,
                            parallel=parallel, **kwargs))
-
+    else:
+        return next(_iread(filename, slice(index, index+1), format, io,
+                           parallel=parallel, **kwargs))
 
 def iread(
         filename: NameOrFile,
