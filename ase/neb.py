@@ -7,7 +7,7 @@ import time
 import numpy as np
 
 from scipy.interpolate import CubicSpline
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid as cumtrapz
 
 import ase.parallel
 from ase.build import minimize_rotation_and_translation
