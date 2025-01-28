@@ -75,8 +75,6 @@ class Graphs:
 
 def make_plot(data, i, expr, type, show=True):
     import matplotlib.pyplot as plt
-    font = {'family':'Arial'}
-    plt.rc('font', **font)
     basesize = 4
     plt.figure(figsize=(basesize * 2.5**0.5, basesize))
     m = len(data)
